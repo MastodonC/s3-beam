@@ -1,4 +1,4 @@
-(defproject org.martinklepsch/s3-beam "0.3.1"
+(defproject kixi/s3-beam "0.4.0"
   :author "Martin Klepsch <http://www.martinklepsch.org>"
   :description "CORS Upload to S3 via Clojure(script)"
   :url "http://github.com/martinklepsch/s3-beam"
@@ -11,7 +11,8 @@
                  [org.clojure/clojurescript "0.0-2371" :scope "provided"]
                  ;[com.google.javascript/closure-compiler "v20140814"]
                  [org.clojure/data.json "0.2.5"]
-                 [org.clojure/core.async "0.1.346.0-17112a-alpha"]]
+                 [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+                 [com.cemerick/url "0.1.1"]]
 
   :scm {:name "git"
          :url "https://github.com/martinklepsch/s3-beam"})

@@ -1,10 +1,12 @@
 (ns s3-beam.client
   (:import (goog Uri))
-  (:require-macros [cljs.core.async.macros :refer [go]])
+  (:require-macros [cljs.core.async.macros :refer [go]]
+                   [cljs-log.core :as log])
   (:require [cljs.reader :as reader]
             [cljs.core.async :as async :refer [chan put! close! pipeline-async]]
             [goog.dom :as gdom]
-            [goog.net.XhrIo :as xhr]))
+            [goog.net.XhrIo :as xhr]
+            [cemerick.url :refer (url-encode)]))
 
 (defn file->map [f]
   {:name (.-name f)
@@ -31,21 +33,30 @@
       (.append fd (name k) v))
     fd))
 
+(defn presigned-url
+  [signature]
+  (let [query-params (dissoc signature :Action)
+        query-string (clojure.string/join "&" (map (fn [[k v]] (str (name k) "=" (url-encode v))) query-params))]
+    (str (:Action signature) "?" query-string)))
+
 (defn upload-file [upload-info ch]
-  (let [sig-fields [:key :Content-Type :success_action_status :policy :AWSAccessKeyId :signature :acl]
+  (let [sig-fields [:Action :X-Amz-Algorithm :X-Amz-Date :X-Amz-SignedHeaders :X-Amz-Expires :X-Amz-Credential :X-Amz-Signature]
         signature  (select-keys (:signature upload-info) sig-fields)
-        form-data  (formdata-from-map (merge signature {:file (:f upload-info)}))]
+        url (presigned-url signature)
+        form-data (:f upload-info)]
     (xhr/send
-     (:action (:signature upload-info))
+     url
      (fn [res]
-       (let [loc (aget (.getElementsByTagName (.getResponseXml (.-target res)) "Location") 0)]
-         (put! ch (gdom/getTextContent loc))
+       (let [status (. (.-target res) (getStatus))]
+         (if (= status 200)
+           (put! ch :success)
+           (put! ch :failure))
          (close! ch)))
-     "POST"
+     "PUT"
      form-data)))
 
 (defn s3-pipe
-  "Takes a channel where completed uploads will be reported and 
+  "Takes a channel where completed uploads will be reported and
   returns a channel where you can put File objects that should get uploaded.
   May also take an options map with:
     :server-url - the sign server url, defaults to \"/sign\""
